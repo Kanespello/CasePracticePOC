@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Real-Time Voice Transcription Dashboard</title>
+    <title>Adaptive Voice Input Dashboard</title>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
     <style>
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -81,24 +82,37 @@
     <button id="stop">Stop Voice Input</button>
     <div id="transcription"></div>
     <div id="processedTranscription"></div>
+
     <script>
         const startButton = document.getElementById('start');
         const stopButton = document.getElementById('stop');
         const transcription = document.getElementById('transcription');
         const processedTranscription = document.getElementById('processedTranscription');
-
-        let recognition;
         let finalTranscript = '';
-        let appState = 'idle'; // Added to manage app state
+        let appState = 'idle'; // Track app state
+
+        function isMobile() {
+            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+        }
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        if (typeof SpeechRecognition !== "undefined") {
-            recognition = new SpeechRecognition();
+        if (!isMobile() && typeof SpeechRecognition !== "undefined") {
+            initializeWebSpeechAPI();
+        } else if (annyang) {
+            initializeAnnyang();
+        } else {
+            startButton.disabled = true;
+            stopButton.disabled = true;
+            transcription.innerText = "Voice recognition is not supported in this browser.";
+        }
+
+        function initializeWebSpeechAPI() {
+            let recognition = new SpeechRecognition();
             recognition.continuous = true;
             recognition.interimResults = true;
 
             recognition.onstart = function() {
-                appState = 'listening'; // Update app state
+                appState = 'listening';
                 finalTranscript = '';
                 processedTranscription.innerText = '';
                 transcription.innerText = '';
@@ -117,7 +131,8 @@
             };
 
             recognition.onend = function() {
-                appState = 'processing'; // Update state to processing
+                appState = 'processing';
+                sendTextForProcessing(finalTranscript);
             };
 
             startButton.onclick = () => {
@@ -125,20 +140,50 @@
                     recognition.start();
                 }
             };
+
             stopButton.onclick = () => {
                 if (appState === 'listening') {
                     recognition.stop();
-                    setTimeout(() => {
-                        sendTextForProcessing(finalTranscript);
-                    }, 1000); // Delay to prevent immediate feedback loop
                 }
             };
-        } else {
-            startButton.disabled = true;
-            stopButton.disabled = true;
-            transcription.innerText = "Speech Recognition is not supported in this browser.";
         }
 
+        function initializeAnnyang() {
+            annyang.addCommands({
+                '*text': function(text) {
+                    finalTranscript += text + '. ';
+                    transcription.innerText = finalTranscript;
+                }
+            });
+
+            annyang.addCallback('start', function() {
+                appState = 'listening';
+            });
+
+            annyang.addCallback('end', function() {
+                if (appState === 'listening') {
+                    annyang.start({ autoRestart: true, continuous: false });
+                }
+            });
+
+            startButton.onclick = () => {
+                if (appState === 'idle') {
+                    finalTranscript = ''; // Reset the final transcript
+                    transcription.innerText = ''; // Clear the transcription display
+                    processedTranscription.innerText = ''; // Clear the processed transcription display
+                    appState = 'listening'; // Update app state to listening
+                    annyang.start({ autoRestart: false, continuous: true });
+                }
+            };
+
+            stopButton.onclick = () => {
+                if (appState === 'listening') {
+                    annyang.abort();
+                    appState = 'processing';
+                    sendTextForProcessing(finalTranscript);
+                }
+            };
+        }
         function sendTextForProcessing(text) {
             if (appState !== 'processing') return; // Guard clause
 
@@ -196,7 +241,10 @@
             const sentences = text.split('.').filter(sentence => sentence.trim().length > 0);
 
             const speakSentence = (index) => {
-                if (index >= sentences.length) return;
+                if (index >= sentences.length) {
+                    appState = 'idle'; // Set appState to idle after speaking all sentences
+                    return;
+                }
 
                 const sentence = sentences[index] + '.';
                 const utterance = new SpeechSynthesisUtterance(sentence);
@@ -211,14 +259,18 @@
                     console.error("Speech Synthesis Error:", event.error);
                 };
 
+                // Adjust the onend handler to check if it's the last sentence
                 utterance.onend = function() {
+                    if (index + 1 === sentences.length) {
+                        appState = 'idle'; // Update appState to idle only after the last sentence
+                    }
                     speakSentence(index + 1);
                 };
 
                 speechSynthesis.speak(utterance);
             };
 
-            speakSentence(0);
+            speakSentence(0); // Start speaking from the first sentence
         }
     </script>
 </body>
