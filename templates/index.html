@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Real-Time Voice Transcription Dashboard</title>
     <script src="//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <style>
@@ -47,34 +48,16 @@
             overflow: hidden;
         }
         #processedTranscription.loading {
-            height: auto; 
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden; 
+            overflow: hidden;
         }
-
         #processedTranscription.loading .dots {
-            position: absolute; /* Position the dots absolutely within the loading container */
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            margin: auto; /* This will center the .dots container */
-            height: 20px; /* Height should be enough to contain the dots without expanding */
             display: flex;
             justify-content: center;
             align-items: center;
         }
-
-
-        #processedTranscription.loading::before {
-            content: '';
-            position: absolute;
-            left: 50%;
-            transform: translateX(-50%);
-        }
-
         .dot {
             display: inline-block;
             width: 8px;
@@ -83,20 +66,14 @@
             background-color: #333;
             border-radius: 50%;
             animation: jump 0.6s infinite;
-            transform-origin: center bottom; /* Add this line */
         }
-
         .dot:nth-child(1) { animation-delay: 0s; }
         .dot:nth-child(2) { animation-delay: 0.2s; }
         .dot:nth-child(3) { animation-delay: 0.4s; }
-
         @keyframes jump {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-10px); }
         }
-
-
-       
     </style>
 </head>
 <body>
@@ -186,7 +163,6 @@
             });
         }
 
-
         function setupVoices() {
             const handleVoicesReady = () => {
                 speak(processedTranscription.innerText);
@@ -211,7 +187,6 @@
         }
 
         function speak(text) {
-
             let voices = speechSynthesis.getVoices();
             let selectedVoice = voices.find(voice => voice.gender === 'male' && voice.lang.includes('en-IN'));
             if (!selectedVoice) {
@@ -221,30 +196,30 @@
             const sentences = text.split('.').filter(sentence => sentence.trim().length > 0);
 
             const speakSentence = (index) => {
-            if (index >= sentences.length) return;
+                if (index >= sentences.length) return;
 
-            const sentence = sentences[index] + '.';
-            const utterance = new SpeechSynthesisUtterance(sentence);
+                const sentence = sentences[index] + '.';
+                const utterance = new SpeechSynthesisUtterance(sentence);
 
-            if (selectedVoice) {
-                utterance.voice = selectedVoice;
-            }
+                if (selectedVoice) {
+                    utterance.voice = selectedVoice;
+                }
 
-            utterance.rate = 0.8;
+                utterance.rate = 0.8;
 
-            utterance.onerror = function(event) {
-                console.error("Speech Synthesis Error:", event.error);
+                utterance.onerror = function(event) {
+                    console.error("Speech Synthesis Error:", event.error);
+                };
+
+                utterance.onend = function() {
+                    speakSentence(index + 1);
+                };
+
+                speechSynthesis.speak(utterance);
             };
 
-            utterance.onend = function() {
-                speakSentence(index + 1);
-            };
-
-            speechSynthesis.speak(utterance);
-        };
-
-        speakSentence(0);
-    }
+            speakSentence(0);
+        }
     </script>
 </body>
 </html>
