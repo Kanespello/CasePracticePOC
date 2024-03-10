@@ -131,8 +131,7 @@
             };
 
             recognition.onend = function() {
-                appState = 'processing';
-                sendTextForProcessing(finalTranscript);
+                
             };
 
             startButton.onclick = () => {
@@ -144,6 +143,10 @@
             stopButton.onclick = () => {
                 if (appState === 'listening') {
                     recognition.stop();
+                    setTimeout(() => {
+                        appState = 'processing';
+                        sendTextForProcessing(finalTranscript);
+                    }, 200);
                 }
             };
         }
@@ -179,8 +182,10 @@
             stopButton.onclick = () => {
                 if (appState === 'listening') {
                     annyang.abort();
-                    appState = 'processing';
-                    sendTextForProcessing(finalTranscript);
+                    setTimeout(() => {
+                        appState = 'processing';
+                        sendTextForProcessing(finalTranscript);
+                    }, 200);
                 }
             };
         }
