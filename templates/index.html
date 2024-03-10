@@ -112,6 +112,7 @@
 
         let recognition;
         let finalTranscript = '';
+        let appState = 'idle'; // Added to manage app state
 
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         if (typeof SpeechRecognition !== "undefined") {
@@ -120,29 +121,17 @@
             recognition.interimResults = true;
 
             recognition.onstart = function() {
+                appState = 'listening'; // Update app state
                 finalTranscript = '';
-                processedTranscription.innerText = ''; // Keep these clear on start
+                processedTranscription.innerText = '';
                 transcription.innerText = '';
             };
-
-            let lastUpdateTime = Date.now();
 
             recognition.onresult = function(event) {
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        const currentTime = Date.now();
-                        const timeDiff = currentTime - lastUpdateTime;
-                        lastUpdateTime = currentTime;
-
-                        let punctuation = '';
-                        if (timeDiff > 4000) {
-                            punctuation = '. ';
-                        } else if (timeDiff > 2000) {
-                            punctuation = ', ';
-                        }
-
-                        finalTranscript += event.results[i][0].transcript + punctuation;
+                        finalTranscript += event.results[i][0].transcript + '. ';
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
@@ -151,12 +140,21 @@
             };
 
             recognition.onend = function() {
+                appState = 'processing'; // Update state to processing
             };
 
-            startButton.onclick = () => recognition.start();
+            startButton.onclick = () => {
+                if (appState === 'idle') {
+                    recognition.start();
+                }
+            };
             stopButton.onclick = () => {
-                recognition.stop();
-                sendTextForProcessing(finalTranscript);
+                if (appState === 'listening') {
+                    recognition.stop();
+                    setTimeout(() => {
+                        sendTextForProcessing(finalTranscript);
+                    }, 1000); // Delay to prevent immediate feedback loop
+                }
             };
         } else {
             startButton.disabled = true;
@@ -165,22 +163,25 @@
         }
 
         function sendTextForProcessing(text) {
+            if (appState !== 'processing') return; // Guard clause
+
             processedTranscription.innerHTML = '<div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>';
-            processedTranscription.classList.add('loading'); // Start loading effect
+            processedTranscription.classList.add('loading');
             $.ajax({
                 type: "POST",
                 url: "/process_text",
                 data: JSON.stringify({message: text}),
                 contentType: "application/json",
                 success: function(response) {
-                  
                     processedTranscription.classList.remove('loading');
                     processedTranscription.innerHTML = '';
-                    processedTranscription.innerText = response.message; 
+                    processedTranscription.innerText = response.message;
+                    appState = 'speaking'; // Update state to speaking
                     setupVoices();
                 },
                 error: function(xhr, status, error) {
                     processedTranscription.innerText = "Error processing your request";
+                    appState = 'idle'; // Reset state to idle in case of error
                 }
             });
         }

@@ -12,7 +12,8 @@ def index():
 def process_text():
     data = request.json
     processed_text = data['message']
-    time.sleep(10)
+    print(processed_text)
+    time.sleep(2)
     return jsonify({'message': processed_text})
 
 if __name__ == '__main__':
