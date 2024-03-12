@@ -5,7 +5,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 client = OpenAI()
-
+thread = client.beta.threads.create()
 app = Flask(__name__)
 
 @app.route('/')
@@ -17,7 +17,7 @@ def process_text():
     data = request.json
     processed_text = data['message']
     print(processed_text)
-    thread = client.beta.threads.create()
+    
 
     run_id = run_assistant(client, processed_text, thread)
     run_status = wait_for_run_completion(client, thread.id, run_id)
