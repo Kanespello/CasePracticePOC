@@ -50,6 +50,26 @@ def run_assistant(client, user_input, thread_id):
     )
     return run.id
 
+def wait_for_run_completion(client, thread_id, run_id):
+    while True:
+        run_status = client.beta.threads.runs.retrieve(
+            thread_id=thread_id, run_id=run_id
+        )
+        if run_status.status in ["completed", "failed"]:
+            return run_status
+        time.sleep(1)
+
+
+def return_last_msg(client, thread_id):
+    messages = client.beta.threads.messages.list(thread_id=thread_id)
+    print(f"Number of messages: {len(messages.data)}")
+    for message in messages.data:
+        role = message.role
+        print(role)
+        if role !='user':
+            for content in message.content :
+                if content.type == "text":
+                    return content.text.value
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8011)
