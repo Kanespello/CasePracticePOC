@@ -11,6 +11,7 @@ app = Flask(__name__)
 
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
+app.config["PERMANENT_SESSION_LIFETIME"] = 1800 
 Session(app)
 
 @app.route('/')
@@ -18,6 +19,7 @@ def index():
     if 'thread_id' not in session:
         thread = client.beta.threads.create()
         session['thread_id'] = thread.id
+        session.modified = True 
     return render_template('dashboard.html')
 
 @app.route('/process_text', methods=['POST'])
