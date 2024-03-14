@@ -3,13 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Adaptive Voice Input Dashboard</title>
+    <title>Enhanced Voice Input Dashboard</title>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: #f0f2f5;
+            font-family: 'Roboto', sans-serif;
+            background-color: #f8f9fa;
             padding: 40px;
             margin: 0;
             display: flex;
@@ -19,7 +20,7 @@
             flex-direction: column;
         }
         button {
-            background-color: #4CAF50; /* Green */
+            background-color: #007bff; /* Bootstrap primary */
             border: none;
             color: white;
             padding: 15px 32px;
@@ -30,41 +31,46 @@
             margin: 4px 2px;
             cursor: pointer;
             border-radius: 4px;
-            transition: background-color 0.3s ease;
+            transition: background-color 0.3s ease, transform 0.2s ease;
         }
         button:hover {
-            background-color: #45a049;
+            background-color: #0056b3;
+            transform: translateY(-2px);
         }
-        #transcription, #processedTranscription {
+        #transcription, #processedTranscription, #analysisResult {
             width: 60%;
             padding: 20px;
             margin-top: 20px;
+            margin-bottom: 20px;
             background: #FFFFFF;
-            border: 1px solid #ccc;
-            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            border: 1px solid #ddd;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
             border-radius: 4px;
             color: #333;
-            transition: box-shadow 0.3s ease;
-            position: relative;
-            overflow: hidden;
+            transition: box-shadow 0.3s ease, border-color 0.3s ease;
+            position: relative; /* Added for loading animation positioning */
         }
-        #processedTranscription.loading {
+        #transcription:hover, #processedTranscription:hover, #analysisResult:hover {
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            border-color: #ccc;
+        }
+        .loading .dots {
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
-        }
-        #processedTranscription.loading .dots {
-            display: flex;
-            justify-content: center;
-            align-items: center;
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(255, 255, 255, 0.8); /* Semi-transparent overlay */
+            top: 0;
+            left: 0;
         }
         .dot {
             display: inline-block;
             width: 8px;
             height: 8px;
             margin: 0 2px;
-            background-color: #333;
+            background-color: #007bff;
             border-radius: 50%;
             animation: jump 0.6s infinite;
         }
@@ -78,10 +84,16 @@
     </style>
 </head>
 <body>
+    
+    <button id="analyzeResults" style="display:none;">Analyze Results</button>
+    <button id="downloadAnalysis" style="display:none;">Download Analysis</button>
+    <div id="analysisResult" style="display:none;"></div>
     <button id="start">Start Voice Input</button>
     <button id="stop">Stop Voice Input</button>
     <div id="transcription"></div>
     <div id="processedTranscription"></div>
+    <button id="endInterview">End Interview</button>
+    <button id="downloadTranscript" style="display:none;">Download Transcript</button>
 
     <script>
         const startButton = document.getElementById('start');
@@ -277,6 +289,65 @@
 
             speakSentence(0); // Start speaking from the first sentence
         }
+
+
+        document.getElementById('endInterview').onclick = function() {
+            
+            $.ajax({
+                type: "POST",
+                url: "/end_interview",
+                success: function(response) {
+                    $('#downloadTranscript').show();
+                    $('#analyzeResults').show();
+                    $('#start').hide();
+                    $('#endInterview').hide();
+                    $('#stop').hide();
+                    $('#transcription').hide();
+                    $('#processedTranscription').hide();
+                },
+                error: function() {
+                    alert("Error ending the interview.");
+                }
+            });
+        };
+
+        document.getElementById('downloadTranscript').onclick = function() {
+            window.location.href = '/download_transcript';
+        };
+
+        document.getElementById('downloadAnalysis').onclick = function() {
+            window.location.href = '/download_analysis';
+        };
+
+        function setLoadingState(isLoading) {
+            if (isLoading) {
+                $('#analysisResult').addClass('loading').html('<div class="dots"><span class="dot"></span><span class="dot"></span><span class="dot"></span></div>');
+            } else {
+                $('#analysisResult').removeClass('loading').html('');
+            }
+        }
+
+        document.getElementById('analyzeResults').onclick = function() {
+            $('#analysisResult').show();
+            setLoadingState(true); // Show loading indicator
+            $.ajax({
+                url: "/analyze_results",
+                success: function(response) {
+                    setLoadingState(false); // Remove loading indicator
+                    $('#downloadAnalysis').show();
+                    $('#analyzeResults').hide();
+                    $('#analysisResult').text(response.analysis);
+                },
+                error: function() {
+                    setLoadingState(false); // Remove loading indicator
+                    alert("Error analyzing the results.");
+                }
+            });
+        };
+
+
+
+
     </script>
 </body>
 </html>
