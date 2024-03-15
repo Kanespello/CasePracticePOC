@@ -134,7 +134,7 @@
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + '. ';
+                        finalTranscript += event.results[i][0].transcript + ' ';
                     } else {
                         interimTranscript += event.results[i][0].transcript;
                     }
@@ -166,7 +166,7 @@
         function initializeAnnyang() {
             annyang.addCommands({
                 '*text': function(text) {
-                    finalTranscript += text + '. ';
+                    finalTranscript += text + ' ';
                     transcription.innerText = finalTranscript;
                 }
             });
@@ -251,8 +251,15 @@
         function speak(text) {
             let voices = speechSynthesis.getVoices();
             let selectedVoice = voices.find(voice => voice.gender === 'male' && voice.lang.includes('en-IN'));
+
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang.includes('en-IN'));
+            }
             if (!selectedVoice) {
                 selectedVoice = voices.find(voice => voice.gender === 'male');
+            }
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.gender === 'female');
             }
 
             const sentences = text.split('.').filter(sentence => sentence.trim().length > 0);
@@ -292,7 +299,7 @@
 
 
         document.getElementById('endInterview').onclick = function() {
-            
+            speechSynthesis.cancel();
             $.ajax({
                 type: "POST",
                 url: "/end_interview",
