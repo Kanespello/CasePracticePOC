@@ -250,16 +250,20 @@
 
         function speak(text) {
             let voices = speechSynthesis.getVoices();
-            let selectedVoice = voices.find(voice => voice.gender === 'male' && voice.lang.includes('en-IN'));
+
+            console.log(voices);
+            // let selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
+
+            let selectedVoice = voices.find(voice => voice.lang === 'hi-IN' && voice.voiceURI.toLowerCase().includes(' male'));
 
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang.includes('en-IN'));
+                selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
             }
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.gender === 'male');
+                selectedVoice = voices.find(voice => voice.voiceURI.toLowerCase().includes(' male'));
             }
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.gender === 'female');
+                selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
             }
 
             const sentences = text.split('.').filter(sentence => sentence.trim().length > 0);
