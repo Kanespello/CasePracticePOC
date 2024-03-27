@@ -303,23 +303,28 @@
 
 
         document.getElementById('endInterview').onclick = function() {
+            // Immediately stop any speech synthesis.
             speechSynthesis.cancel();
-            $.ajax({
-                type: "POST",
-                url: "/end_interview",
-                success: function(response) {
-                    $('#downloadTranscript').show();
-                    $('#analyzeResults').show();
-                    $('#start').hide();
-                    $('#endInterview').hide();
-                    $('#stop').hide();
-                    $('#transcription').hide();
-                    $('#processedTranscription').hide();
-                },
-                error: function() {
-                    alert("Error ending the interview.");
-                }
-            });
+
+            // Wait a short period to ensure speechSynthesis has time to stop before proceeding.
+            setTimeout(function() {
+                $.ajax({
+                    type: "POST",
+                    url: "/end_interview",
+                    success: function(response) {
+                        $('#downloadTranscript').show();
+                        $('#analyzeResults').show();
+                        $('#start').hide();
+                        $('#endInterview').hide();
+                        $('#stop').hide();
+                        $('#transcription').hide();
+                        $('#processedTranscription').hide();
+                    },
+                    error: function() {
+                        alert("Error ending the interview.");
+                    }
+                });
+            }, 100); // Wait 100 milliseconds
         };
 
         document.getElementById('downloadTranscript').onclick = function() {

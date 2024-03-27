@@ -69,8 +69,8 @@ def download_transcript():
 @app.route('/analyze_results', methods=['GET'])
 def analyze_results():
     transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in session.get('transcript', [])])
-    if transcript_text:
-        prompt = "Provide a detailed analysis of the following interview transcript in max 200 words, highlighting key strengths and areas for improvement."
+    if transcript_text and len(transcript_text)>500:
+        prompt = "Analyze the provided case study transcript focusing on three key parameters: Communication, where you'll evaluate the effectiveness of idea and information exchange, considering clarity and engagement; Analytical Thinking, assessing the ability to dissect complex issues into simpler components, recognize patterns, and employ logical reasoning; and Problem Solving, gauging the creativity and efficiency in devising solutions to presented challenges. For each parameter, offer succinct feedback in max 200 words comprising strengths and areas needing improvement, aiming to highlight both the exemplary aspects and suggest actionable insights for enhancement. Your feedback should not only identify what was done well but also provide constructive suggestions for further development, ensuring a balanced and insightful evaluation that fosters growth and learning."
         detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.completions.create(
@@ -86,7 +86,7 @@ def analyze_results():
         analysis = response.choices[0].text.strip()
         session['analysis'] = analysis
         return jsonify({'analysis': analysis})
-    return jsonify({'analysis': "There is no transcript for analysis"})
+    return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
 
 @app.route('/download_analysis', methods=['GET'])
 def download_analysis():
