@@ -251,19 +251,29 @@
         function speak(text) {
             let voices = speechSynthesis.getVoices();
 
-            console.log(voices);
+            // console.log(voices);
             // let selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
 
-            let selectedVoice = voices.find(voice => voice.lang === 'hi-IN' && voice.voiceURI.toLowerCase().includes(' male'));
+            let selectedVoice = voices.find(voice => voice.lang === 'en-IN' && voice.voiceURI.toLowerCase().includes(' male'));
 
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
+                selectedVoice = voices.find(voice => voice.lang === 'en-IN');
             }
+
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.voiceURI.toLowerCase().includes(' male'));
+                voices.find(voice => voice.lang === 'en-US' && voice.voiceURI.toLowerCase().includes(' male'));
             }
+
             if (!selectedVoice) {
-                selectedVoice = voices.find(voice => voice.lang === 'hi-IN');
+                voices.find(voice => voice.lang === 'en-UK' && voice.voiceURI.toLowerCase().includes(' male'));
+            }
+
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang === 'en-US');
+            }
+
+            if (!selectedVoice) {
+                selectedVoice = voices.find(voice => voice.lang === 'en-UK');
             }
 
             const sentences = text.split('.').filter(sentence => sentence.trim().length > 0);
