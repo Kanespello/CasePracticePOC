@@ -15,9 +15,8 @@ def wrap_text(text, width, canvas):
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-
+assistant_id = os.getenv("ASSISTANT_ID")
 client = OpenAI(api_key=openai_api_key)
-assistant_id = 'asst_7RrpQGctGtbuCQosef4Vw8rs'
 
 app = Flask(__name__)
 app.config["SESSION_PERMANENT"] = False
@@ -69,8 +68,8 @@ def download_transcript():
 @app.route('/analyze_results', methods=['GET'])
 def analyze_results():
     transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in session.get('transcript', [])])
-    if transcript_text and len(transcript_text)>500:
-        prompt = "Analyze the provided case study transcript focusing on three key parameters: Communication, where you'll evaluate the effectiveness of idea and information exchange, considering clarity and engagement; Analytical Thinking, assessing the ability to dissect complex issues into simpler components, recognize patterns, and employ logical reasoning; and Problem Solving, gauging the creativity and efficiency in devising solutions to presented challenges. For each parameter, offer succinct feedback in max 200 words(line break after each parameter) comprising strengths and areas needing improvement, aiming to highlight both the exemplary aspects and suggest actionable insights for enhancement. Your feedback should not only identify what was done well but also provide constructive suggestions for further development, ensuring a balanced and insightful evaluation that fosters growth and learning."
+    if transcript_text and len(transcript_text)>1000:
+        prompt = "When analyzing a case interview transcript, the feedback should be structured to address various essential aspects succinctly. For Communication, clarity in conveying ideas should be assessed, followed by the organization and coherence of responses, the conciseness of idea expression, the appropriateness of language and grammar, and evidence of active listening, each separated by a line break. In Analytical Thinking, the understanding of core issues, the skill in interpreting data, the ability to generate relevant hypotheses, and the prioritization of key factors should be evaluated, again with line breaks after each. Problem-Solving involves examining the structured approach to problems, the creativity of solutions, the practicality of solution assessments, adaptability to new information, and considerations for implementation, with each feedback point isolated by a line break. Collaboration is gauged by the ability to engage and build rapport, and flexibility in receiving feedback, with a separation between the two. Business Acumen focuses on industry knowledge and strategic thinking, each followed by a line break. Presentation Skills should review the confidence and persuasion in presenting solutions, with each aspect clearly separated. Depending on the case type, additional feedback on Math & Calculations for quantitative analysis, and Teamwork & Etiquette for group dynamics, may also be provided, each with its own line break. This structure aims for a clear, concise feedback mechanism, limiting each feedback point to no more than 10 words and ensuring readability and directness in evaluation."
         detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.completions.create(
