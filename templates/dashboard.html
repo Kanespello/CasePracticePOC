@@ -143,7 +143,9 @@
             };
 
             recognition.onend = function() {
-                
+                if (appState === 'listening') {
+                    recognition.start();
+                }
             };
 
             startButton.onclick = () => {
