@@ -81,7 +81,7 @@ This structured feedback mechanism aims for clarity and conciseness, limiting ea
         detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.completions.create(
-          model="gpt-3.5-turbo-instruct",
+          model="gpt-4",
           prompt=detailed_prompt,
           temperature=1,
           max_tokens=256,
