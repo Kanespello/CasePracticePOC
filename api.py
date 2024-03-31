@@ -78,11 +78,14 @@ Business Acumen: Focus on industry knowledge and strategic thinking, providing f
 Presentation Skills: Review confidence and persuasion in presenting solutions. Feedback should be limited to these aspects if they are relevant to the performance observed.
 For case types involving quantitative analysis, add Math & Calculations to assess numerical skills and analysis, only if applicable. For group dynamics, Teamwork & Etiquette may be provided, again, only if relevant interactions can be evaluated.
 This structured feedback mechanism aims for clarity and conciseness, limiting each feedback point to no more than 10 words and ensuring readability and directness in evaluation. Only provide feedback on aspects that are clearly demonstrated or applicable as per the transcript, avoiding assumptions or hallucinations about missing information.'''
-        detailed_prompt = f"{prompt}\n\n{transcript_text}"
+        # detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
-        response = client.completions.create(
-          model="gpt-4",
-          prompt=detailed_prompt,
+        response = client.chat.completions.create(
+          model="gpt-4-turbo-preview",
+          messages=[
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": transcript_text}
+          ],
           temperature=1,
           max_tokens=256,
           top_p=1,
@@ -90,7 +93,7 @@ This structured feedback mechanism aims for clarity and conciseness, limiting ea
           presence_penalty=0
         )
 
-        analysis = response.choices[0].text.strip()
+        analysis = completion.choices[0].message.content.strip()
         session['analysis'] = analysis
         return jsonify({'analysis': analysis})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
