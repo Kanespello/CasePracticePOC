@@ -86,11 +86,11 @@ This structured feedback mechanism aims for clarity and conciseness, limiting ea
             {"role": "system", "content": prompt},
             {"role": "user", "content": transcript_text}
           ],
-          temperature=1,
+          temperature=0.8,
           max_tokens=256,
-          top_p=1,
-          frequency_penalty=0,
-          presence_penalty=0
+          top_p=0.9,
+          frequency_penalty=0.5,
+          presence_penalty=0.4
         )
 
         analysis = response.choices[0].message.content.strip()
