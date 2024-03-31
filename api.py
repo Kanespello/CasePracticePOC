@@ -93,7 +93,7 @@ This structured feedback mechanism aims for clarity and conciseness, limiting ea
           presence_penalty=0
         )
 
-        analysis = completion.choices[0].message.content.strip()
+        analysis = response.choices[0].message.content.strip()
         session['analysis'] = analysis
         return jsonify({'analysis': analysis})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
