@@ -172,7 +172,7 @@ def wait_for_run_completion(client, thread_id, run_id):
         )
         if run_status.status in ["completed", "failed"]:
             return run_status
-        time.sleep(1)
+        time.sleep(2)
 
 
 def return_last_msg(client, thread_id):
