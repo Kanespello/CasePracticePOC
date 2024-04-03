@@ -88,7 +88,7 @@ At the end of analysis also give the rating out of 10 with respect to each param
             {"role": "user", "content": transcript_text}
           ],
           temperature=0.8,
-          max_tokens=256,
+          max_tokens=350,
           top_p=0.9,
           frequency_penalty=0.5,
           presence_penalty=0.4
