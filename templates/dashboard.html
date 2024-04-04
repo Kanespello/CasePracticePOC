@@ -134,9 +134,9 @@
                 let interimTranscript = '';
                 for (let i = event.resultIndex; i < event.results.length; ++i) {
                     if (event.results[i].isFinal) {
-                        finalTranscript += event.results[i][0].transcript + ' ';
+                        finalTranscript += (event.results[i][0].transcript + ' ').replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ");;
                     } else {
-                        interimTranscript += event.results[i][0].transcript;
+                        interimTranscript += event.results[i][0].transcript.replace(/[^\w\s]|_/g, "").replace(/\s+/g, " ");;
                     }
                 }
                 transcription.innerText = finalTranscript + interimTranscript;
