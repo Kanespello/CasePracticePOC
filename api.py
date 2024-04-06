@@ -30,7 +30,6 @@ Session(app)
 
 @app.route('/verify_google_token', methods=['POST', 'GET'])
 def verify_google_token():
-    print(request)
     token = request.form.get('credential')
     print(token)
     try:
