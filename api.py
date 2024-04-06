@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template, session
+from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, abort
 from flask_session import Session
 import os
 from dotenv import load_dotenv
@@ -8,31 +8,60 @@ from io import BytesIO
 from openai import OpenAI
 import time
 from textwrap import wrap
+from google.oauth2 import id_token
+from google.auth.transport import requests as google_requests
 
-def wrap_text(text, width, canvas):
-    lines = wrap(text, width) 
-    return lines
+from flask_cors import CORS
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
 assistant_id = os.getenv("ASSISTANT_ID")
 client = OpenAI(api_key=openai_api_key)
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='', static_folder='.')
+CORS(app)
+
 app.config["SESSION_PERMANENT"] = False
 app.config["SESSION_TYPE"] = "filesystem"
 app.config["PERMANENT_SESSION_LIFETIME"] = 1800
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
+YOUR_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 Session(app)
+
+@app.route('/verify_google_token', methods=['POST', 'GET'])
+def verify_google_token():
+    print(request)
+    token = request.form.get('credential')
+    print(token)
+    try:
+        idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), YOUR_CLIENT_ID)
+        session['user_id'] = idinfo['sub']
+        user_email = idinfo['email']
+        user_name = idinfo.get('name')  
+        print(user_email)
+        print(user_name)
+        print(idinfo['sub'])
+        return redirect(url_for('index'))
+    except ValueError:
+        abort(401)
+
+@app.route('/logout')
+def logout():
+    session.pop('user_id', None)
+    return redirect(url_for('index'))
 
 @app.route('/')
 def index():
-    if 'thread_id' not in session:
-        thread = client.beta.threads.create()
-        session['thread_id'] = thread.id
-        session.modified = True 
-        if 'transcript' not in session:
-            session['transcript'] = []
-    return render_template('dashboard.html')
+    if 'user_id' in session:
+        if 'thread_id' not in session:
+            thread = client.beta.threads.create()
+            session['thread_id'] = thread.id
+            session.modified = True 
+            if 'transcript' not in session:
+                session['transcript'] = []
+        return render_template('dashboard.html')
+    return render_template('login.html', GOOGLE_CLIENT_ID=YOUR_CLIENT_ID)
+    # return send_from_directory('.', 'login.html')
 
 @app.route('/end_interview', methods=['POST'])
 def end_interview():
@@ -186,6 +215,10 @@ def return_last_msg(client, thread_id):
             for content in message.content :
                 if content.type == "text":
                     return content.text.value
+
+def wrap_text(text, width, canvas):
+    lines = wrap(text, width) 
+    return lines
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8011)
