@@ -31,7 +31,6 @@ Session(app)
 @app.route('/verify_google_token', methods=['POST', 'GET'])
 def verify_google_token():
     token = request.form.get('credential')
-    print(token)
     try:
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), YOUR_CLIENT_ID)
         session['user_id'] = idinfo['sub']
