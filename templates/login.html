@@ -1,18 +1,24 @@
 <html>
   <body>
-      <script src="https://accounts.google.com/gsi/client" async defer></script>
-      <div id="g_id_onload"
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <div id="g_id_onload"
          data-client_id="{{ GOOGLE_CLIENT_ID }}"
-         data-login_uri="http://localhost:8011/verify_google_token"
          data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin"
+    </div>
+    <div class="g_id_signin"
          data-type="standard"
          data-size="large"
          data-theme="outline"
          data-text="sign_in_with"
          data-shape="rectangular"
          data-logo_alignment="left">
-      </div>
+    </div>
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var loginUri = window.location.origin + '/verify_google_token';
+        var gIdOnloadDiv = document.getElementById('g_id_onload');
+        gIdOnloadDiv.setAttribute('data-login_uri', loginUri);
+      });
+    </script>
   </body>
 </html>
