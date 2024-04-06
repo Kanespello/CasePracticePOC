@@ -45,7 +45,7 @@ def verify_google_token():
 
 @app.route('/logout')
 def logout():
-    session.pop('user_id', None)
+    session.clear()
     return redirect(url_for('index'))
 
 @app.route('/')
