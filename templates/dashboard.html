@@ -7,6 +7,9 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <script src="//ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/annyang/2.6.1/annyang.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/tracking-min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tracking.js/1.1.3/data/face-min.js"></script>
+
     <style>
         body {
             font-family: 'Roboto', sans-serif;
@@ -84,7 +87,9 @@
     </style>
 </head>
 <body>
-    
+
+    <video id="webcam" autoplay muted width="320" height="240"></video>
+    <canvas id="canvas" width="320" height="240"></canvas>
     <button id="analyzeResults" style="display:none;">Analyze Results</button>
     <button id="downloadAnalysis" style="display:none;">Download Analysis</button>
     <div id="analysisResult" style="display:none;"></div>
@@ -103,6 +108,55 @@
         const processedTranscription = document.getElementById('processedTranscription');
         let finalTranscript = '';
         let appState = 'idle'; // Track app state
+
+
+        document.addEventListener('DOMContentLoaded', function() {
+            startWebcamAndTracking();
+        });
+
+        document.addEventListener('visibilitychange', function() {
+            if (document.visibilityState === 'hidden') {
+                alert('Please do not switch tabs during the interview.');
+            }
+        });
+
+        function startWebcamAndTracking() {
+            const video = document.getElementById('webcam');
+            const canvas = document.getElementById('canvas');
+            const context = canvas.getContext('2d');
+
+            navigator.mediaDevices.getUserMedia({ video: true })
+                .then(function(stream) {
+                    video.srcObject = stream;
+                    video.play();
+                })
+                .catch(function(error) {
+                    console.error("Error accessing the webcam", error);
+                });
+
+            const tracker = new tracking.ObjectTracker("face");
+            tracker.setInitialScale(4);
+            tracker.setStepSize(2);
+            tracker.setEdgesDensity(0.1);
+            tracking.track('#webcam', tracker);
+
+            tracker.on('track', function(event) {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                // event.data.forEach(function(rect) {
+                //     context.strokeStyle = '#ff0000';
+                //     context.strokeRect(rect.x, rect.y, rect.width, rect.height);
+                //     context.fillText('Face detected', rect.x + rect.width + 5, rect.y + 11);
+                // });
+                
+                if (event.data.length > 1) {
+                    alert("More than one face detected. Please ensure only the interviewee is present.");
+                }
+                // if (event.data.length < 1) {
+                //     alert("No face is detected, make sure to be in front of camera");
+                // }
+            });
+        }
+
 
         function isMobile() {
             return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
