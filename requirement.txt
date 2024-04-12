@@ -9,6 +9,8 @@ requests
 scipy
 tqdm
 flask_session
+google-auth
+
 
 
 
