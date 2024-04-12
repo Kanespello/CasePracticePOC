@@ -11,6 +11,7 @@ tqdm
 flask_session
 google-auth
 flask_cors
+gunicorn
 
 
 
