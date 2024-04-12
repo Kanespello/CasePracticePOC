@@ -1,0 +1,85 @@
+sudo mkdir services
+sudo git clone https://github.com/Kanespello/UserRegistrationService.git
+sudo git clone https://github.com/Kanespello/EspelloUtils.git
+sudo git clone https://github.com/Kanespello/CasePracticePOC.git
+
+sudo apt-get update && sudo apt-get upgrade
+--------------------------------------------
+sudo apt install maven
+sudo mvn clean install (espelloUtils)
+
+check java version
+we want java 17(if not match remove the current and install 17)
+
+dpkg --list | grep -i openjdk ---this will give list jdk 
+sudo apt-get remove <to be removed>
+sudo apt-get install openjdk-17-jdk --install
+
+---------------------------------------------
+install and setup mysql 
+sudo apt install mysql-server
+sudo mysql_secure_installation
+sudo mysql
+CREATE DATABASE espello CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+CREATE USER 'espello'@'localhost' IDENTIFIED BY 'Kanespello@123';
+GRANT ALL PRIVILEGES ON espello.* TO 'espello'@'localhost';
+FLUSH PRIVILEGES;
+sudo systemctl enable mysql
+sudo systemctl status mysql
+
+create all tables in espello database
+
+----------------------------------------------
+
+
+sudo apt-get install python3-pip
+sudo pip install -r requirement.txt
+create .env file
+
+sudo gunicorn -w 4 api:app --bind 0.0.0.0:8000
+
+-----------------------------------------------
+
+sudo apt-get install nginx
+
+sudo vim /etc/nginx/sites-available/myapp
+
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    location / {
+        proxy_pass http://localhost:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+
+sudo ln -s /etc/nginx/sites-available/myapp /etc/nginx/sites-enabled
+
+sudo nginx -t
+
+
+sudo systemctl restart nginx
+
+sudo apt-get install software-properties-common
+sudo add-apt-repository universe
+sudo add-apt-repository ppa:certbot/certbot
+sudo apt-get update
+
+sudo apt-get install python3-certbot-nginx
+sudo certbot --nginx -d yourdomain.com
+
+https://20.193.152.154/
+---------------------------------------------------------
+
+
+for now stopped the nginx
+and start the ngork tunnel for hosting
+
+sudo wget https://bin.equinox.io/c/bNyj1mQVY4c/ngrok-v3-stable-linux-amd64.tgz
+sudo tar xvzf ./ngrok-v3-stable-linux-amd64.tgz -C /usr/local/bin
+ngrok authtoken 2eiWAMmRKCdiFP8CgEBIKI0dZ9O_4uJeyFhmLxH9Xbehn1aZ3
+ngrok http 8000
