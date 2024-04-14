@@ -10,6 +10,8 @@ import time
 from textwrap import wrap
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
+import re
+import json
 
 from flask_cors import CORS
 
@@ -96,16 +98,30 @@ def download_transcript():
 def analyze_results():
     transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in session.get('transcript', [])])
     if transcript_text and len(transcript_text)>1000:
-        prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. The framework for feedback is as follows, with each category separated by a line break:
-Communication: Evaluate the candidate's clarity in conveying ideas, organization and coherence of responses, conciseness in expressing ideas, appropriateness of language and grammar, and evidence of active listening. Only include categories that are applicable based on the transcript. Highlight areas for improvement where communication may lack effectiveness or clarity.
+        prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. For each parameter, provide feedback in a single line followed by subparameter feedback, if applicable. Rate each subparameter out of 10 and provide a brief description.
+
+Use these tokens for showing starting and ending.
+<r>rating value</r>
+<mp>major param heading</mp>
+<mpd>major param desc</mpd>
+<sp><sub param heading/sp>
+<spd>sub param desc</spd>
+
+Communication: Evaluate the candidate's clarity in conveying ideas, organization and coherence of responses, conciseness in expressing ideas, appropriateness of language and grammar, and evidence of active listening. Only include categories and subcategories that are applicable based on the transcript. Highlight areas for improvement where communication may lack effectiveness or clarity.
+
 Analytical Thinking: Assess the understanding of core issues, skill in interpreting data, ability to generate relevant hypotheses, and prioritization of key factors. Each feedback point should be given only if these aspects are demonstrated in the transcript. Identify gaps in analytical reasoning or areas that could benefit from deeper analysis.
+
 Problem-Solving: Examine the structured approach to problems, creativity of solutions, practicality of solution assessments, adaptability to new information, and considerations for implementation. Feedback should skip any element not evidenced in the discussion. Point out instances where problem-solving strategies could be enhanced or where alternative approaches may yield better outcomes.
+
 Collaboration: Gauge the ability to engage and build rapport, and flexibility in receiving feedback. Include comments on these only if interaction dynamics are clearly presented. Mention any missed opportunities for collaboration or areas where communication could be improved to foster better teamwork.
+
 Business Acumen: Focus on industry knowledge and strategic thinking, providing feedback if these areas are discussed or demonstrated. Suggest areas where further industry insight or strategic considerations could strengthen the candidate's approach.
+
 Presentation Skills: Review confidence and persuasion in presenting solutions. Feedback should be limited to these aspects if they are relevant to the performance observed. Offer constructive criticism on how presentation skills could be improved, such as through better structuring, more persuasive arguments, or enhanced confidence.
-For case types involving quantitative analysis, add Math & Calculations to assess numerical skills and analysis, only if applicable. For group dynamics, Teamwork & Etiquette may be provided, again, only if relevant interactions can be evaluated. Comment on any mathematical errors or oversights in calculations, and suggest ways to enhance teamwork and professional etiquette.
-This structured feedback mechanism aims for clarity and conciseness, limiting each feedback point to no more than 10 words and ensuring readability and directness in evaluation. Only provide feedback on aspects that are clearly demonstrated or applicable as per the transcript, avoiding assumptions or hallucinations about missing information. Additionally, ensure feedback is balanced, recognizing strengths while also pointing out areas for improvement, fostering a constructive and realistic evaluation.
-At the end of analysis also give the rating out of 10 with respect to each parameter in tabular format.'''
+
+Include additional categories such as Math & Calculations or Teamwork & Etiquette if applicable, structured similarly with descriptions and ratings for main parameters and subparameters.
+
+This structured feedback mechanism aims for clarity and conciseness, ensuring readability and directness in evaluation. Only provide feedback on aspects that are clearly demonstrated or applicable as per the transcript, avoiding assumptions or hallucinations about missing information. Additionally, ensure feedback is balanced, recognizing strengths while also pointing out areas for improvement, fostering a constructive and realistic evaluation.'''
         # detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.chat.completions.create(
@@ -115,14 +131,14 @@ At the end of analysis also give the rating out of 10 with respect to each param
             {"role": "user", "content": transcript_text}
           ],
           temperature=0.8,
-          max_tokens=350,
+          max_tokens=512,
           top_p=0.9,
           frequency_penalty=0.5,
           presence_penalty=0.4
         )
 
         analysis = response.choices[0].message.content.strip()
-        session['analysis'] = analysis
+        session['analysis'] = parse_evaluation_data(analysis)
         return jsonify({'analysis': analysis})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
 
@@ -217,6 +233,52 @@ def return_last_msg(client, thread_id):
 def wrap_text(text, width, canvas):
     lines = wrap(text, width) 
     return lines
+
+def parse_evaluation_data(input_data):
+    # Adjust regex to correctly handle main parameter blocks until another <mp> or end of input
+    main_param_pattern = re.compile(r'<mp>(.*?)</mp>\s*<mpd>(.*?)</mpd>((?:(?!<mp>).)*)', re.DOTALL)
+    sub_param_pattern = re.compile(r'<sp>(.*?)</sp>\s*<spd>(.*?)</spd>\s*<r>(.*?)</r>', re.DOTALL)
+
+    main_params_list = []
+
+    # Process each main parameter block
+    for mp_match in main_param_pattern.finditer(input_data):
+        mp_name = mp_match.group(1).strip()
+        mp_description = mp_match.group(2).strip()
+        mp_content = mp_match.group(3)
+
+        sub_params_list = []
+        scores = []
+
+        # Process each sub-parameter within the current main parameter block
+        for sp_match in sub_param_pattern.finditer(mp_content):
+            sp_name = sp_match.group(1).strip()
+            sp_description = sp_match.group(2).strip()
+            sp_score = int(sp_match.group(3).strip())  # Convert score to integer
+
+            sub_params_list.append({
+                "analysisParam": sp_name,
+                "analysisParamDesc": sp_description,
+                "analysisParamScore": sp_score
+            })
+
+            scores.append(sp_score)
+
+        # Calculate the average score for the main parameter, handling the case where there are no sub-parameters
+        average_score = sum(scores) // len(scores) if scores else 0
+
+        main_params_list.append({
+            "analysisDetailTuple": {
+                "analysisParam": mp_name,
+                "analysisParamDesc": mp_description,
+                "analysisParamScore": average_score
+            },
+            "subParamsAnalysisDetailTuple": sub_params_list
+        })
+
+    # Convert the structured data into JSON
+    output_json = json.dumps({"analysisParams": main_params_list}, indent=4)
+    return output_json
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8011)
