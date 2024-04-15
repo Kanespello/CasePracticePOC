@@ -121,7 +121,7 @@ Presentation Skills: Review confidence and persuasion in presenting solutions. F
 
 Include additional categories such as Math & Calculations or Teamwork & Etiquette if applicable, structured similarly with descriptions and ratings for main parameters and subparameters.
 
-This structured feedback mechanism aims for clarity and conciseness, ensuring readability and directness in evaluation. Only provide feedback on aspects that are clearly demonstrated or applicable as per the transcript, avoiding assumptions or hallucinations about missing information. Additionally, ensure feedback is balanced, recognizing strengths while also pointing out areas for improvement, fostering a constructive and realistic evaluation.'''
+This structured feedback mechanism aims for clarity and conciseness, ensuring readability and directness in evaluation. Only provide feedback on aspects that are clearly demonstrated or applicable as per the transcript, avoiding assumptions or hallucinations about missing information. Additionally, ensure feedback is balanced, recognizing strengths while also pointing out areas for improvement, fostering a constructive and realistic evaluation. Do not provide additional comments just give feedback on the respective parameters'''
         # detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.chat.completions.create(
@@ -131,7 +131,7 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
             {"role": "user", "content": transcript_text}
           ],
           temperature=0.8,
-          max_tokens=512,
+          max_tokens=1024,
           top_p=0.9,
           frequency_penalty=0.5,
           presence_penalty=0.4
@@ -139,7 +139,7 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
 
         analysis = response.choices[0].message.content.strip()
         session['analysis'] = parse_evaluation_data(analysis)
-        return jsonify({'analysis': analysis})
+        return jsonify({'analysis': session['analysis']})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
 
 @app.route('/download_analysis', methods=['GET'])
@@ -236,8 +236,11 @@ def wrap_text(text, width, canvas):
 
 def parse_evaluation_data(input_data):
     # Adjust regex to correctly handle main parameter blocks until another <mp> or end of input
-    main_param_pattern = re.compile(r'<mp>(.*?)</mp>\s*<mpd>(.*?)</mpd>((?:(?!<mp>).)*)', re.DOTALL)
-    sub_param_pattern = re.compile(r'<sp>(.*?)</sp>\s*<spd>(.*?)</spd>\s*<r>(.*?)</r>', re.DOTALL)
+    main_param_pattern = re.compile(r'<mp>(.*?)</mp>\s*<mpd>(.*?)</mpd>((?:.(?!<mp>))*.)', re.DOTALL)
+    
+    # Updated sub_param_pattern to handle <r> tag before or after <spd>
+    sub_param_pattern = re.compile(
+        r'<sp>(.*?)</sp>\s*(?:<spd>(.*?)</spd>\s*)?<r>(.*?)</r>\s*(?:<spd>(.*?)</spd>)?', re.DOTALL)
 
     main_params_list = []
 
@@ -253,18 +256,20 @@ def parse_evaluation_data(input_data):
         # Process each sub-parameter within the current main parameter block
         for sp_match in sub_param_pattern.finditer(mp_content):
             sp_name = sp_match.group(1).strip()
-            sp_description = sp_match.group(2).strip()
-            sp_score = int(sp_match.group(3).strip())  # Convert score to integer
+            sp_description = sp_match.group(2) or sp_match.group(4)  # Handle either position of <spd>
+            sp_description = sp_description.strip() if sp_description else "No description provided"
+            sp_score_raw = sp_match.group(3).strip()
+            sp_score = int(sp_score_raw) if sp_score_raw.isdigit() else None
 
             sub_params_list.append({
                 "analysisParam": sp_name,
                 "analysisParamDesc": sp_description,
                 "analysisParamScore": sp_score
             })
+            if sp_score is not None:
+                scores.append(sp_score)
 
-            scores.append(sp_score)
-
-        # Calculate the average score for the main parameter, handling the case where there are no sub-parameters
+        # Calculate the average score for the main parameter, handling cases with no scores
         average_score = sum(scores) // len(scores) if scores else 0
 
         main_params_list.append({
