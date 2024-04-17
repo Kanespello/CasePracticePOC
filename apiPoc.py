@@ -1,6 +1,10 @@
 from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, abort
+from flask_session import Session
 import os
 from dotenv import load_dotenv
+from reportlab.pdfgen import canvas
+from reportlab.lib.pagesizes import letter
+from io import BytesIO
 from openai import OpenAI
 import time
 from textwrap import wrap
@@ -19,6 +23,10 @@ client = OpenAI(api_key=openai_api_key)
 app = Flask(__name__, static_url_path='', static_folder='.')
 CORS(app)
 
+app.config["SESSION_PERMANENT"] = False
+app.config["SESSION_TYPE"] = "filesystem"
+app.config["PERMANENT_SESSION_LIFETIME"] = 1800
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 YOUR_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
 Session(app)
 
@@ -30,20 +38,65 @@ def verify_google_token():
         session['user_id'] = idinfo['sub']
         user_email = idinfo['email']
         user_name = idinfo.get('name')  
-        return jsonify({'email':user_email, 'name':user_name})
+        print(user_email)
+        print(user_name)
+        print(idinfo['sub'])
+        return redirect(url_for('index'))
     except ValueError:
         abort(401)
 
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('index'))
 
-@app.route('/create_thread', methods=['GET'])
-def create_thread():
-    thread = client.beta.threads.create()
-    return jsonify({'thread_id':thread.id})
+@app.route('/')
+def index():
+    if 'user_id' in session:
+        if 'thread_id' not in session:
+            thread = client.beta.threads.create()
+            session['thread_id'] = thread.id
+            session.modified = True 
+            if 'transcript' not in session:
+                session['transcript'] = []
+        return render_template('dashboard.html')
+    return render_template('login.html', GOOGLE_CLIENT_ID=YOUR_CLIENT_ID)
+    # return send_from_directory('.', 'login.html')
+
+@app.route('/end_interview', methods=['POST'])
+def end_interview():
+    return jsonify({'status': 'interview ended'})
+
+@app.route('/download_transcript', methods=['GET'])
+def download_transcript():
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y_position = height - 30
+    p.drawString(72, y_position, "Interview Transcript")
+    y_position -= 30
+    max_width = 75  # Adjust based on your page layout and margins
+
+    for entry in session.get('transcript', []):
+        role = entry.get('role')
+        text = entry.get('text')
+        lines = wrap_text(f"{role}: {text}", max_width, p)
+        
+        for line in lines:
+            y_position -= 20
+            if y_position < 40:  # Check to ensure there is enough space for the line; adjust threshold as needed
+                p.showPage()
+                y_position = height - 30  # Reset y_position for the new page
+            p.drawString(72, y_position, line)
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, mimetype='application/pdf', download_name='transcript.pdf')
 
 @app.route('/analyze_results', methods=['GET'])
 def analyze_results():
-    data = request.json
-    transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in data['transcript']])
+    transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in session.get('transcript', [])])
     if transcript_text and len(transcript_text)>1000:
         prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. For each parameter, provide feedback in a single line followed by subparameter feedback, if applicable. Rate each subparameter out of 10 and provide a brief description.
 
@@ -89,12 +142,43 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
         return jsonify({'analysis': session['analysis']})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
 
+@app.route('/download_analysis', methods=['GET'])
+def download_analysis():
+    analysis = session.get('analysis', '')
+    buffer = BytesIO()
+    p = canvas.Canvas(buffer, pagesize=letter)
+    width, height = letter
+    y_position = height - 30
+    max_width = 75  # Adjust based on your page layout and margins
+    
+    p.drawString(72, y_position, "Interview Analysis")
+    y_position -= 30
+
+    # Assuming each 'paragraph' in analysis is separated by '\n'
+    paragraphs = analysis.split('\n')
+    for para in paragraphs:
+        lines = wrap_text(para, max_width, p)
+        for line in lines:
+            y_position -= 20  # Increase this value to increase space between lines
+            if y_position < 40:  # Ensure there is enough space for the line; adjust threshold as needed
+                p.showPage()
+                y_position = height - 30  # Reset y_position for the new page
+            p.drawString(72, y_position, line)
+
+    p.showPage()
+    p.save()
+    buffer.seek(0)
+    return send_file(buffer, as_attachment=True, mimetype='application/pdf', download_name='analysis.pdf')
+
 
 @app.route('/process_text', methods=['POST'])
 def process_text():
     data = request.json
     processed_text = data['message']
-    thread_id = data['thread_id']
+
+    session['transcript'].append({'role':'interviewee','text':processed_text})
+    
+    thread_id = session.get('thread_id')
     if thread_id is None:
         return jsonify({'message': "Session Error"})
 
@@ -104,6 +188,10 @@ def process_text():
         print("Assistant response received:")
 
         response = return_last_msg(client, thread_id)
+
+        session['transcript'].append({'role':'interviewer','text':response})
+
+        session.modified = True
 
         return jsonify({'message': response})
     else:
