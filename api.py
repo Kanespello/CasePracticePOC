@@ -20,6 +20,7 @@ app = Flask(__name__, static_url_path='', static_folder='.')
 CORS(app)
 
 YOUR_CLIENT_ID = os.getenv('GOOGLE_CLIENT_ID')
+app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
 
 @app.route('/verify_google_token', methods=['POST', 'GET'])
 def verify_google_token():
