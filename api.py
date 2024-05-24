@@ -40,7 +40,7 @@ def create_thread():
     thread = client.beta.threads.create()
     return jsonify({'thread_id':thread.id})
 
-@app.route('/analyze_results', methods=['GET'])
+@app.route('/analyze_results', methods=['POST', 'GET'])
 def analyze_results():
     data = request.json
     transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in data['transcript']])
