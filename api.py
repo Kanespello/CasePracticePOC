@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template, session, redirect, url_for, abort
+from flask import Flask, request, jsonify, send_file, Response, render_template, session, redirect, url_for, abort
 import os
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -108,6 +108,33 @@ def process_text():
         return jsonify({'message': response})
     else:
         return jsonify({'message': "Error"})
+
+
+@app.route('/process_text_stream', methods=['POST'])
+def process_text_stream():
+    data = request.json
+    processed_text = data['message']
+    thread_id = data['thread_id']
+
+    if thread_id is None:
+        return jsonify({'message': "Session Error"})
+
+    message = client.beta.threads.messages.create(
+        thread_id=thread_id,
+        role="user",
+        content=processed_text,
+    )
+
+    def generate_stream():
+        with client.beta.threads.runs.stream(
+          thread_id=thread_id,
+          assistant_id=assistant_id
+        ) as stream:
+            for text in stream.text_deltas:
+                yield text
+    
+    return Response(generate_stream(), content_type='text/event-stream')
+
 
 def run_assistant(client, user_input, thread_id):
     message = client.beta.threads.messages.create(
