@@ -72,7 +72,7 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
         # detailed_prompt = f"{prompt}\n\n{transcript_text}"
 
         response = client.chat.completions.create(
-          model="gpt-4-turbo-preview",
+          model="gpt-4o-2024-05-13",
           messages=[
             {"role": "system", "content": prompt},
             {"role": "user", "content": transcript_text}
