@@ -32,7 +32,7 @@ def verify_google_token():
         user_name = idinfo.get('name')
 
         if user_name and user_email:
-            return jsonify({'userId':register(user_name, user_email)}) 
+            return jsonify({'user_id':register(user_name, user_email)}) 
         return None
 
     except ValueError:
