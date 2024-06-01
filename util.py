@@ -21,7 +21,7 @@ def get_session_details(session_id):
     url = f'http://localhost:9033/session/api/v1/getSessionDetails?sessionId={session_id}'
     headers = {'Content-Type': 'application/json'}
     response = requests.get(url, headers=headers)
-    if response.status_code == 200:
+    if response.status_code == 200 and response.json()!=None and 'data' in response.json() :
         return response.json()['data']
     return None
    
@@ -32,7 +32,7 @@ def get_assistant_thread(session_id):
     response = requests.get(url, headers=headers)
     if response.status_code == 200:
         data = response.json()
-        if data['data']!=None:
+        if data!=None and 'data' in data and data['data']!=None:
         	return data['data']['threadId'], data['data']['assistantId']
     return None, None
     
@@ -40,8 +40,8 @@ def get_assistant_thread(session_id):
 def get_transcript(session_id):
     url = f'http://localhost:9033/session/api/v1/getTranscript?sessionId={session_id}'
     headers = {'Content-Type': 'application/json'}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200 and 'data' in response.json() and 'conversationTuples' in response.json()['data'] and response.json()['data']['conversationTuples']!=None:
+    response = requests.get(url, headers=headers)    
+    if response.status_code == 200 and response.json()!=None and 'data' in response.json() and response.json()['data']!=None and 'conversationTuples' in response.json()['data'] and response.json()['data']['conversationTuples']!=None:
         return response.json()['data']['conversationTuples']
     return None
 
@@ -105,7 +105,7 @@ def register(name, email):
 
     if response.status_code == 200:
         
-        if 'data' in response.json() and 'userId' in response.json()['data']:
+        if response.json()!=None and 'data' in response.json() and 'userId' in response.json()['data']:
             return response.json()['data']['userId']
 
     else:

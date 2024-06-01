@@ -62,14 +62,11 @@ def analyze_results():
     data = request.json
 
     session_id = data['session_id']
-
-    transcript = get_transcript('session_id')
-
-    if transcript ==None:
-        return None
+    transcript = get_transcript(session_id)
+    if transcript == None:
+        return jsonify({'status':'failed'})
 
     transcript_text = "\n".join([f"interviewee: {item['intervieweeText']}\ninterviewer: {item['interviewerText']}" for item in transcript])
-
     if transcript_text and len(transcript_text)>1000:
         prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. For each parameter, provide feedback in a single line followed by subparameter feedback, if applicable. Rate each subparameter out of 10 and provide a brief description.
 
@@ -112,11 +109,12 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
 
         analysis = response.choices[0].message.content.strip()
         parsed_analysis = parse_evaluation_data(analysis)
+        json_analysis = json.loads(parsed_analysis)
+        if json_analysis!=None and 'analysisParams' in json_analysis:
+            save_analysis(session_id, json_analysis['analysisParams'])
+            return jsonify({'status':'success','analysisParams': json_analysis['analysisParams']})
 
-        save_analysis(session_id, parsed_analysis)
-
-        return jsonify({'analysis': parsed_analysis})
-    return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
+    return jsonify({'status':'failed','analysis': "There is no transcript or very small transcript for analysis"})
 
 
 @app.route('/process_text', methods=['POST'])
