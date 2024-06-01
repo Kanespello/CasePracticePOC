@@ -8,12 +8,12 @@ from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 import re
 import json
+from util import *
 
 from flask_cors import CORS
 
 load_dotenv()
 openai_api_key = os.getenv("OPENAI_API_KEY")
-assistant_id = os.getenv("ASSISTANT_ID")
 client = OpenAI(api_key=openai_api_key)
 
 app = Flask(__name__, static_url_path='', static_folder='.')
@@ -29,21 +29,47 @@ def verify_google_token():
         idinfo = id_token.verify_oauth2_token(token, google_requests.Request(), YOUR_CLIENT_ID)
         session['user_id'] = idinfo['sub']
         user_email = idinfo['email']
-        user_name = idinfo.get('name')  
-        return jsonify({'email':user_email, 'name':user_name})
+        user_name = idinfo.get('name')
+
+        if user_name and user_email:
+            return jsonify({'userId':register(user_name, user_email)}) 
+        return None
+
     except ValueError:
         abort(401)
 
 
-@app.route('/create_thread', methods=['GET'])
+@app.route('/create_thread', methods=['POST'])
 def create_thread():
-    thread = client.beta.threads.create()
-    return jsonify({'thread_id':thread.id})
+    data = request.json
+    session_id=data['session_id']
+
+    session_details = get_session_details(session_id)
+
+    assistant_id = get_assistant(session_details)
+
+    if assistant_id!=None:
+        thread = client.beta.threads.create()
+
+        save_assistant_thread(session_id, assistant_id, thread.id)
+
+        return jsonify({'status':'success'})
+
+    return jsonify({'status':'failed'})
 
 @app.route('/analyze_results', methods=['POST', 'GET'])
 def analyze_results():
     data = request.json
-    transcript_text = "\n".join([f"{item['role']}: {item['text']}" for item in data['transcript']])
+
+    session_id = data['session_id']
+
+    transcript = get_transcript('session_id')
+
+    if transcript ==None:
+        return None
+
+    transcript_text = "\n".join([f"interviewee: {item['intervieweeText']}\ninterviewer: {item['interviewerText']}" for item in transcript])
+
     if transcript_text and len(transcript_text)>1000:
         prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. For each parameter, provide feedback in a single line followed by subparameter feedback, if applicable. Rate each subparameter out of 10 and provide a brief description.
 
@@ -85,8 +111,11 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
         )
 
         analysis = response.choices[0].message.content.strip()
-        session['analysis'] = parse_evaluation_data(analysis)
-        return jsonify({'analysis': session['analysis']})
+        parsed_analysis = parse_evaluation_data(analysis)
+
+        save_analysis(session_id, parsed_analysis)
+
+        return jsonify({'analysis': parsed_analysis})
     return jsonify({'analysis': "There is no transcript or very small transcript for analysis"})
 
 
@@ -94,16 +123,20 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
 def process_text():
     data = request.json
     processed_text = data['message']
-    thread_id = data['thread_id']
-    if thread_id is None:
+    session_id = data['session_id']
+
+    thread_id, assistant_id = get_assistant_thread(session_id)
+    if thread_id is None or assistant_id is None:
         return jsonify({'message': "Session Error"})
 
-    run_id = run_assistant(client, processed_text, thread_id)
+    run_id = run_assistant(client, processed_text, thread_id, assistant_id)
     run_status = wait_for_run_completion(client, thread_id, run_id)
     if run_status.status == "completed":
         print("Assistant response received:")
 
         response = return_last_msg(client, thread_id)
+
+        save_conversation(session_id, response, processed_text)
 
         return jsonify({'message': response})
     else:
@@ -114,9 +147,11 @@ def process_text():
 def process_text_stream():
     data = request.json
     processed_text = data['message']
-    thread_id = data['thread_id']
+    session_id = data['session_id']
 
-    if thread_id is None:
+    thread_id, assistant_id = get_assistant_thread(session_id)
+
+    if thread_id is None or assistant_id is None:
         return jsonify({'message': "Session Error"})
 
     message = client.beta.threads.messages.create(
@@ -125,18 +160,30 @@ def process_text_stream():
         content=processed_text,
     )
 
+    complete_response_text = []
+
     def generate_stream():
         with client.beta.threads.runs.stream(
           thread_id=thread_id,
           assistant_id=assistant_id
         ) as stream:
             for text in stream.text_deltas:
+                complete_response_text.append(text)
                 yield text
-    
-    return Response(generate_stream(), content_type='text/event-stream')
+
+    # Create the response stream
+    response_stream = Response(generate_stream(), content_type='text/event-stream')
+
+    # Save the conversation after streaming completes
+    @response_stream.call_on_close
+    def on_close():
+        full_text_response = ' '.join(complete_response_text)
+        save_conversation(session_id, full_text_response, processed_text)
+
+    return response_stream
 
 
-def run_assistant(client, user_input, thread_id):
+def run_assistant(client, user_input, thread_id, assistant_id):
     message = client.beta.threads.messages.create(
         thread_id=thread_id,
         role="user",
