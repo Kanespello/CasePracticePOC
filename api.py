@@ -39,7 +39,7 @@ def verify_google_token():
         abort(401)
 
 
-@app.route('/create_thread', methods=['POST'])
+@app.route('/create_thread', methods=['POST','GET'])
 def create_thread():
     data = request.json
     session_id=data['session_id']
