@@ -67,10 +67,12 @@ def analyze_results():
         return jsonify({'status':'failed'})
 
     transcript_text = "\n".join([f"interviewee: {item['intervieweeText']}\ninterviewer: {item['interviewerText']}" for item in transcript])
-    if transcript_text and len(transcript_text)>1000:
+    if transcript_text and len(transcript_text)>10:
         prompt = '''Analyze the given case interview transcript. The feedback should be structured to comprehensively cover applicable aspects, only addressing those observed within the transcript. For each parameter, provide feedback in a single line followed by subparameter feedback, if applicable. Rate each subparameter out of 10 and provide a brief description.
 
 Use these tokens for showing starting and ending.
+<ol>give a case interview title</ol>
+<od>overall case interview feedback in brief</od>
 <r>rating value</r>
 <mp>major param heading</mp>
 <mpd>major param desc</mpd>
@@ -106,13 +108,12 @@ This structured feedback mechanism aims for clarity and conciseness, ensuring re
           frequency_penalty=0.5,
           presence_penalty=0.4
         )
-
         analysis = response.choices[0].message.content.strip()
         parsed_analysis = parse_evaluation_data(analysis)
         json_analysis = json.loads(parsed_analysis)
-        if json_analysis!=None and 'analysisParams' in json_analysis:
-            save_analysis(session_id, json_analysis['analysisParams'])
-            return jsonify({'status':'success','analysisParams': json_analysis['analysisParams']})
+        if json_analysis!=None and 'analysisParams' in json_analysis and 'caseTitle' in json_analysis and 'summary' in json_analysis:
+            save_analysis(session_id, json_analysis['analysisParams'], json_analysis['summary'], json_analysis['caseTitle'])
+            return jsonify({'status':'success','analysisParams': json_analysis['analysisParams'], 'summary': json_analysis['summary'], 'caseTitle': json_analysis['caseTitle']})
 
     return jsonify({'status':'failed','analysis': "There is no transcript or very small transcript for analysis"})
 
@@ -226,6 +227,15 @@ def parse_evaluation_data(input_data):
     sub_param_pattern = re.compile(
         r'<sp>(.*?)</sp>\s*(?:<spd>(.*?)</spd>\s*)?<r>(.*?)</r>\s*(?:<spd>(.*?)</spd>)?', re.DOTALL)
 
+    case_title_pattern = re.compile(r'<ol>(.*?)</ol>', re.DOTALL)
+    summary_pattern = re.compile(r'<od>(.*?)</od>', re.DOTALL)
+
+    case_title_match = case_title_pattern.search(input_data)
+    summary_match = summary_pattern.search(input_data)
+    
+    case_title = case_title_match.group(1).strip() if case_title_match else ''
+    summary = summary_match.group(1).strip() if summary_match else ''
+
     main_params_list = []
 
     # Process each main parameter block
@@ -265,8 +275,14 @@ def parse_evaluation_data(input_data):
             "subParamsAnalysisDetailTuple": sub_params_list
         })
 
-    # Convert the structured data into JSON
-    output_json = json.dumps({"analysisParams": main_params_list}, indent=4)
+        output_data = {
+            "caseTitle": case_title,
+            "summary": summary,
+            "analysisParams": main_params_list
+        }
+
+        # Convert the structured data into JSON
+        output_json = json.dumps(output_data, indent=4)
     return output_json
 
 if __name__ == '__main__':

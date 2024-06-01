@@ -69,12 +69,14 @@ def save_conversation(session_id, interviewer_text, interviewee_text):
         print("Failed to save conversation:", response.json())
 
 
-def save_analysis(session_id, analysis):
+def save_analysis(session_id, analysis, summary, caseTitle):
     url = "http://localhost:9033/session/api/v1/saveAnalysis"
 
     payload = {
         "sessionId": session_id,
-        "analysisParams": analysis
+        "analysisParams": analysis,
+        "summary":summary,
+        "caseTitle":caseTitle
     }
 
     headers = {
