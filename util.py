@@ -17,12 +17,21 @@ def save_assistant_thread(session_id, assistant_id, thread_id):
         return response.json()
     return None
 
-def get_session_details(session_id):
-    url = f'http://localhost:9033/session/api/v1/getSessionDetails?sessionId={session_id}'
-    headers = {'Content-Type': 'application/json'}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200 and response.json()!=None and 'data' in response.json() :
-        return response.json()['data']
+def save_session_details(user_id, session_details):
+    url = f'http://localhost:9033/session/api/v1/createSession'
+
+    payload = {
+        "userId": user_id,
+        "sessionDetails": session_details
+    }
+
+    headers = {
+        "Content-Type": "application/json",
+    }
+
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200 and response.json()!=None and 'data' in response.json() and 'sessionId' in response.json()['data']:
+        return response.json()['data']['sessionId']
     return None
    
 
@@ -116,10 +125,10 @@ def register(name, email):
 
 def get_assistant(session_details):
 
-	if session_details!=None and 'sessionDetails' in session_details and 'role' in session_details['sessionDetails'] and session_details['sessionDetails']['role']!=None:
-		if session_details['sessionDetails']['role'] == 'consultant':
+	if session_details!=None and 'role' in session_details and session_details['role']!=None:
+		if session_details['role'] == 'consultant':
 			return os.getenv('CONSULTANT_ASSISTANT_ID')
-		elif session_details['sessionDetails']['role'] == 'product':
+		elif session_details['role'] == 'product':
 			return os.getenv('PRODUCT_ASSISTANT_ID')
 
 

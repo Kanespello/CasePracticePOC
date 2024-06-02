@@ -39,12 +39,15 @@ def verify_google_token():
         abort(401)
 
 
-@app.route('/create_thread', methods=['POST','GET'])
-def create_thread():
-    data = request.json
-    session_id=data['session_id']
 
-    session_details = get_session_details(session_id)
+
+@app.route('/save_session_details', methods=['POST','GET'])
+def _save_session_details():
+    data = request.json
+    session_details=data['sessionDetails']
+    user_id=data['userId']
+
+    session_id = save_session_details(user_id, session_details)
 
     assistant_id = get_assistant(session_details)
 
@@ -56,6 +59,8 @@ def create_thread():
         return jsonify({'status':'success'})
 
     return jsonify({'status':'failed'})
+
+
 
 @app.route('/analyze_results', methods=['POST', 'GET'])
 def analyze_results():
