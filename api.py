@@ -56,9 +56,9 @@ def _save_session_details():
 
         save_assistant_thread(session_id, assistant_id, thread.id)
 
-        return jsonify({'status':'success'})
+        return jsonify({'data':{'sessionId':session_id, 'status': 'success'}})
 
-    return jsonify({'status':'failed'})
+    return jsonify({'data':{'status':'failed'}})
 
 
 
