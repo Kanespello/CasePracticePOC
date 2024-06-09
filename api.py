@@ -9,6 +9,8 @@ from google.auth.transport import requests as google_requests
 import re
 import json
 from util import *
+import io
+import tempfile
 
 from flask_cors import CORS
 
@@ -145,6 +147,59 @@ def process_text():
         return jsonify({'message': response})
     else:
         return jsonify({'message': "Error"})
+        
+
+@app.route('/process_text_audio', methods=['POST'])
+def process_text_audio():
+    data = request.json
+    processed_text = data['message']
+    session_id = data['session_id']
+
+    thread_id, assistant_id = get_assistant_thread(session_id)
+    if thread_id is None or assistant_id is None:
+        return jsonify({'message': "Session Error"})
+
+    run_id = run_assistant(client, processed_text, thread_id, assistant_id)
+    run_status = wait_for_run_completion(client, thread_id, run_id)
+    if run_status.status == "completed":
+        print("Assistant response received:")
+
+        response = return_last_msg(client, thread_id)
+
+        save_conversation(session_id, response, processed_text)
+
+        audio_stream = get_audio(response)
+
+        return send_file(audio_stream, as_attachment=True, download_name="response.mp3", mimetype="audio/mpeg")
+
+        # return jsonify({'message': response})
+    else:
+        return jsonify({'message': "Error"})
+
+
+def get_audio(text):
+    response = client.audio.speech.create(
+        model="tts-1",
+        voice="alloy",
+        input=text,
+    )
+
+    # Create a temporary file
+    with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+        temp_file_path = temp_file.name
+        response.stream_to_file(temp_file_path)
+
+    # Read the temporary file into a BytesIO buffer
+    audio_stream = io.BytesIO()
+    with open(temp_file_path, 'rb') as f:
+        audio_stream.write(f.read())
+
+    # Delete the temporary file
+    os.remove(temp_file_path)
+
+    # Rewind the buffer to the beginning
+    audio_stream.seek(0)
+    return audio_stream
 
 
 @app.route('/process_text_stream', methods=['POST'])
@@ -291,6 +346,7 @@ def parse_evaluation_data(input_data):
     return output_json
 
 if __name__ == '__main__':
+    # get_audio("Hi navneet, how are you today?")
     app.run(debug=True, host='0.0.0.0', port=8011)
 
 
