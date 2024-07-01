@@ -130,6 +130,9 @@ def process_text():
     data = request.json
     processed_text = data['message']
     session_id = data['session_id']
+    
+    if not processed_text:
+        return jsonify({'message': "Please let me know if you're stuck or need any extra information. I'm here to help."})
 
     thread_id, assistant_id = get_assistant_thread(session_id)
     if thread_id is None or assistant_id is None:
